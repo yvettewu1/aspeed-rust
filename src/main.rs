@@ -160,14 +160,14 @@ fn main() -> ! {
     let _ = syscon.enable_clock(ClockId::ClkRSACLK as u8);
 
     let mut ecdsa = AspeedEcdsa::new(&secure, delay.clone());
-    run_ecdsa_tests(&mut uart_controller, &mut ecdsa);
+   // run_ecdsa_tests(&mut uart_controller, &mut ecdsa);
 
-    let mut rsa = AspeedRsa::new(&secure, delay);
-    run_rsa_tests(&mut uart_controller, &mut rsa);
-    gpio_test::test_gpioa(&mut uart_controller);
-    test_wdt(&mut uart_controller);
+    //let mut rsa = AspeedRsa::new(&secure, delay);
+    //run_rsa_tests(&mut uart_controller, &mut rsa);
+    //gpio_test::test_gpioa(&mut uart_controller);
+    //test_wdt(&mut uart_controller);
 
-    let test_spicontroller = false;
+    let test_spicontroller = true;
     let test_irq = true;
     if test_spicontroller {
         if test_irq {

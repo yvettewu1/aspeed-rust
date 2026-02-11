@@ -279,8 +279,9 @@ pub fn verify_dma_buffer_match(i: usize) -> bool {
     true
 }
 
-pub fn fill_dma_buffer(op_req: DmaOp, random: bool) {
+pub fn fill_dma_buffer(op_req: DmaOp, random: bool, pattern: u32) {
     let mut seed = 0xDEAD_FBEE;
+    seed += pattern;
 
     unsafe {
         for i in 0..MAX_DMA_CHAIN {
@@ -385,13 +386,13 @@ pub fn test_fmc_dma_irq(uart: &mut UartController<'_>) {
         let start_addrs = [0x0000_0000, 0x0000_0100, 0x0000_0200, 0x0000_0300];
 
         CURRENT_DEVID = DeviceId::FmcCs0Idx;
-        fill_dma_buffer(DmaOp::Read, true);
+        fill_dma_buffer(DmaOp::Read, true, 0);
         delay.delay_ns(8_000_000);
         dma_irq_chain_test(&start_addrs, DmaOp::Read, false);
 
         delay.delay_ns(8_000_000);
 
-        log_uart!("==== FMC DEV1 DMA read & write Test====");
+        log_uart!("==== FMC DEV1 DMA Slow read & write Test====");
         let controller1 = FMC_CONTROLLER.as_mut().unwrap();
         let flash_device1 = ChipSelectDevice {
             bus: controller1, // reuse same ref
@@ -412,10 +413,10 @@ pub fn test_fmc_dma_irq(uart: &mut UartController<'_>) {
         let read_only = false;
         CURRENT_DEVID = DeviceId::FmcCs1Idx;
         if read_only {
-            fill_dma_buffer(DmaOp::Read, false);
+            fill_dma_buffer(DmaOp::Read, false, 0);
             dma_irq_chain_test(&start_addrs, DmaOp::Read, false);
         } else {
-            fill_dma_buffer(DmaOp::Program, true);
+            fill_dma_buffer(DmaOp::Program, true, 0x1234);
             let _ = dev1.nor_sector_erase(0x0000_0000);
             delay.delay_ns(8_000_000);
             // NOTE: DMA write has an issue in AST2600-Errata-11
@@ -466,7 +467,7 @@ pub fn test_spi_dma_irq(uart: &mut UartController<'_>) {
 
         let controller = SPI_CONTROLLER.as_mut().unwrap();
         let _ = controller.init();
-        log_uart!("==== SPI0 DEV0 DMA read Test====");
+        log_uart!("==== SPI0 DEV0 DMA  Test====");
         // You can now pass `fmc_ptr` into ChipSelectDevice or use it directly
         let nor_read_data: SpiNorData<'_> =
             spitest::nor_device_read_4b_data(spitest::SPI_CS0_CAPACITY);
@@ -490,12 +491,12 @@ pub fn test_spi_dma_irq(uart: &mut UartController<'_>) {
         //let start_addrs = [0x0000_0100];
         CURRENT_DEVID = DeviceId::Spi0Cs0Idx;
 
-        let read_only = true;
+        let read_only = false;
         if read_only {
-            fill_dma_buffer(DmaOp::ReadFast, false);
+            fill_dma_buffer(DmaOp::ReadFast, false, 0);
             dma_irq_chain_test(&start_addrs, DmaOp::ReadFast, false);
         } else {
-            fill_dma_buffer(DmaOp::Program, true);
+            fill_dma_buffer(DmaOp::Program, true, 0xabc);
             let _ = dev0.nor_sector_erase(0x0000_0000);
             delay.delay_ns(8_000_000);
             dma_irq_chain_test(&start_addrs, DmaOp::ProgramFast, false);
@@ -505,7 +506,7 @@ pub fn test_spi_dma_irq(uart: &mut UartController<'_>) {
             }
             dma_irq_chain_test(&start_addrs, DmaOp::ReadFast, true);
         }
-        log_uart!("==== End SPI0 DEV0 DMA read Test====");
+        log_uart!("==== End SPI0 DEV0 DMA  Test====");
     } //unsafe
 
     scu_qspi_mux[0] = 0x0000_0000;

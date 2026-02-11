@@ -2,7 +2,8 @@
 
 use super::device::ChipSelectDevice;
 use super::SpiBusWithCs;
-use super::{norflash, SpiError, SPI_NOR_DATA_DIRECT_READ, SPI_NOR_DATA_DIRECT_WRITE};
+use super::{norflash, SpiError};
+use super::consts::{SPI_NOR_DATA_DIRECT_READ, SPI_NOR_DATA_DIRECT_WRITE};
 use crate::common::DummyDelay;
 use embedded_hal::delay::DelayNs;
 

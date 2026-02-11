@@ -3,23 +3,25 @@
 use super::{
     aspeed_get_spi_freq_div, get_addr_buswidth, get_hclock_rate, get_mid_point_of_longest_one,
     spi_cal_dummy_cycle, spi_calibration_enable, spi_io_mode, spi_io_mode_user, spi_read_data,
-    spi_write_data, CtrlType, SpiBusWithCs, SpiConfig, SpiData, SpiError, Write, ASPEED_MAX_CS,
-    ASPEED_SPI_NORMAL_READ, ASPEED_SPI_NORMAL_WRITE, ASPEED_SPI_SZ_256M, ASPEED_SPI_SZ_2M,
-    ASPEED_SPI_USER, ASPEED_SPI_USER_INACTIVE, SPI_CALIB_LEN, SPI_CTRL_FREQ_MASK,
-    SPI_DMA_CALC_CKSUM, SPI_DMA_CALIB_MODE, SPI_DMA_DISCARD_REQ_MAGIC, SPI_DMA_ENABLE,
-    SPI_DMA_FLASH_MAP_BASE, SPI_DMA_GET_REQ_MAGIC, SPI_DMA_GRANT, SPI_DMA_RAM_MAP_BASE,
-    SPI_DMA_REQUEST, SPI_DMA_STATUS, SPI_DMA_TIMEOUT,
+    spi_write_data, CtrlType, SpiBusWithCs, SpiConfig, SpiData, SpiError, get_cmd_buswidth,
+    get_data_buswidth
 };
+use super::consts::{ASPEED_MAX_CS,ASPEED_SPI_NORMAL_READ, ASPEED_SPI_NORMAL_WRITE, ASPEED_SPI_SZ_256M, 
+    ASPEED_SPI_SZ_2M, ASPEED_SPI_USER, ASPEED_SPI_USER_INACTIVE, SPI_CALIB_LEN, 
+    SPI_CTRL_FREQ_MASK, SPI_DMA_CALC_CKSUM, SPI_DMA_CALIB_MODE, SPI_DMA_DISCARD_REQ_MAGIC, 
+    SPI_DMA_ENABLE, SPI_DMA_FLASH_MAP_BASE, SPI_DMA_GET_REQ_MAGIC, SPI_DMA_GRANT, 
+    SPI_DMA_RAM_MAP_BASE, SPI_DMA_REQUEST, SPI_DMA_STATUS, SPI_DMA_TIMEOUT,
+    SPI_CTRL_CEX_4BYTE_MODE_SET, SPI_CTRL_CEX_DUMMY_SHIFT, SPI_CTRL_CEX_SPI_CMD_MASK, 
+    SPI_CTRL_CEX_SPI_CMD_SHIFT, SPI_DMA_CLK_FREQ_SHIFT, SPI_DMA_CLK_FREQ_MASK, SPI_DMA_DELAY_MASK, 
+    SPI_DMA_DELAY_SHIFT, SPI_CONF_CE0_ENABLE_WRITE_SHIFT,  SPI_NOR_DATA_DIRECT_READ, SPI_NOR_DATA_DIRECT_WRITE};
+
+use embedded_io::Write;
 
 #[cfg(feature = "spi_dma")]
-use super::{SPI_DMA_TRIGGER_LEN, SPI_NOR_DATA_DIRECT_READ, SPI_NOR_DATA_DIRECT_WRITE};
+use super::consts::{SPI_DMA_TRIGGER_LEN};
 
 use crate::dbg;
-use crate::spi::{
-    SPI_CONF_CE0_ENABLE_WRITE_SHIFT, SPI_CTRL_CEX_4BYTE_MODE_SET, SPI_CTRL_CEX_DUMMY_SHIFT,
-    SPI_CTRL_CEX_SPI_CMD_MASK, SPI_CTRL_CEX_SPI_CMD_SHIFT, SPI_DMA_CLK_FREQ_MASK,
-    SPI_DMA_CLK_FREQ_SHIFT, SPI_DMA_DELAY_MASK, SPI_DMA_DELAY_SHIFT,
-};
+
 use crate::{common::DummyDelay, spi::norflash::SpiNorData, uart::UartController};
 use embedded_hal::{
     delay::DelayNs,
@@ -494,14 +496,14 @@ impl<'a> FmcController<'a> {
         self.activate_user();
         // Send command
         let cmd_mode = self.spi_data.cmd_mode[cs].user
-            | super::spi_io_mode_user(u32::from(super::get_cmd_buswidth(op_info.mode as u32)));
+            | spi_io_mode_user(u32::from(get_cmd_buswidth(op_info.mode as u32)));
         cs_ctrlreg_w!(self, cs, cmd_mode);
         dbg!(self, "write opcode/cmd: 0x{:08x}", op_info.opcode);
-        unsafe { super::spi_write_data(start_ptr, &[op_info.opcode.try_into().unwrap()]) };
+        unsafe { spi_write_data(start_ptr, &[op_info.opcode.try_into().unwrap()]) };
 
         // Send address
         let addr_mode = self.spi_data.cmd_mode[cs].user
-            | super::spi_io_mode_user(u32::from(super::get_addr_buswidth(op_info.mode as u32)));
+            | spi_io_mode_user(u32::from(get_addr_buswidth(op_info.mode as u32)));
         cs_ctrlreg_w!(self, cs, addr_mode);
 
         let mut addr = op_info.addr;
@@ -510,22 +512,22 @@ impl<'a> FmcController<'a> {
         }
 
         let addr_bytes = addr.to_be_bytes();
-        unsafe { super::spi_write_data(start_ptr, &addr_bytes[..op_info.addr_len as usize]) };
+        unsafe { spi_write_data(start_ptr, &addr_bytes[..op_info.addr_len as usize]) };
 
         // Dummy cycles
-        let bus_width: u8 = super::get_addr_buswidth(op_info.mode as u32);
+        let bus_width: u8 = get_addr_buswidth(op_info.mode as u32);
         let dummy_len: u8 = (op_info.dummy_cycle / (8 / u32::from(bus_width)))
             .try_into()
             .unwrap();
         dbg!(self, "write dummy len: 0x{:08x}", dummy_len);
-        unsafe { super::spi_write_data(start_ptr, &dummy[..dummy_len as usize]) };
+        unsafe { spi_write_data(start_ptr, &dummy[..dummy_len as usize]) };
 
         // Data transfer
         let data_mode = self.spi_data.cmd_mode[cs].user
-            | spi_io_mode_user(u32::from(super::get_data_buswidth(op_info.mode as u32)));
+            | spi_io_mode_user(u32::from(get_data_buswidth(op_info.mode as u32)));
         cs_ctrlreg_w!(self, cs, data_mode);
 
-        if op_info.data_direct == super::SPI_NOR_DATA_DIRECT_READ {
+        if op_info.data_direct == SPI_NOR_DATA_DIRECT_READ {
             unsafe { spi_read_data(start_ptr, op_info.rx_buf) };
         } else {
             unsafe { spi_write_data(start_ptr, op_info.tx_buf) };
@@ -848,18 +850,18 @@ impl<'a> SpiBus<u8> for FmcController<'a> {
         if !rd_buffer.is_empty() {
             let ahb_addr = self.spi_data.decode_addr[cs].start as usize as *const u32;
             // Read RX buffer
-            unsafe { super::spi_read_data(ahb_addr, rd_buffer) };
+            unsafe { spi_read_data(ahb_addr, rd_buffer) };
         }
         self.deactivate_user();
         Ok(())
     }
 
     fn transfer_in_place(&mut self, _buffer: &mut [u8]) -> Result<(), SpiError> {
-        todo!()
+        Err(SpiError::Other("transfer_in_place not supported"))
     }
 
     fn flush(&mut self) -> Result<(), SpiError> {
-        todo!()
+        Err(SpiError::Other("flush not supported"))
     }
 }
 

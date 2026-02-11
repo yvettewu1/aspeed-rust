@@ -8,10 +8,9 @@ use super::fmccontroller::FmcController;
 use super::norflash::{
     Jesd216Mode, SpiNorData, SpiNorDevice, SPI_NOR_CMD_QREAD, SPI_NOR_CMD_READ_FAST_4B,
 };
-use super::{
-    norflash, CommandMode, CtrlType, SpiConfig, SpiData, SpiDecodeAddress,
-    SPI_NOR_DATA_DIRECT_READ, SPI_NOR_DATA_DIRECT_WRITE,
-};
+use super::{ norflash };
+use super::types::{CommandMode, CtrlType, SpiConfig, SpiData, SpiDecodeAddress};
+use super::consts::{SPI_NOR_DATA_DIRECT_READ, SPI_NOR_DATA_DIRECT_WRITE};
 use crate::common::{self, DmaBuffer, DummyDelay};
 use crate::spi::norflashblockdevice;
 use crate::spi::norflashblockdevice::{BlockAddrUsize, NorFlashBlockDevice};
